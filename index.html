@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>SCADA Water Pump</title>
+
+    <link rel="stylesheet"
+          href="css/style.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<main>
+
+    <!-- ================= HEADER ================= -->
+
+    <header class="header">
+
+        <div class="title">
+
+            <h1>SCADA WATER PUMP</h1>
+
+            <p>Industrial Monitoring & Control System</p>
+
+        </div>
+
+        <div class="company">
+
+            <i class="fa-solid fa-industry"></i>
+
+            <span>Fauzan SCADA Automation</span>
+
+        </div>
+
+    </header>
+
+    <!-- ================= STATUS BAR ================= -->
+
+    <section class="status-bar">
+
+        <div class="status">
+
+            <i class="fa-solid fa-microchip"></i>
+
+            <div>
+
+                <h4>Device</h4>
+
+                <span class="online" id="deviceStatus">
+
+                    ONLINE
+
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="status">
+
+            <i class="fa-solid fa-wifi"></i>
+
+            <div>
+
+                <h4>MQTT</h4>
+
+                <span class="online" id="mqttStatus">
+
+                    CONNECTED
+
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="status">
+
+            <i class="fa-solid fa-bolt"></i>
+
+            <div>
+
+                <h4>Relay</h4>
+
+                <span id="relayStatus">
+
+                    OFF
+
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="status">
+
+            <i class="fa-solid fa-plug-circle-bolt"></i>
+
+            <div>
+
+                <h4>Power</h4>
+
+                <span class="online">
+
+                    NORMAL
+
+                </span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- ================= DASHBOARD ================= -->
+
+    <section class="dashboard">
+
+        <!-- LEFT -->
+
+        <div class="process">
+
+            <h2>
+
+                <i class="fa-solid fa-diagram-project"></i>
+
+                Process Diagram
+
+            </h2>
+
+            <div id="processArea">
+
+                <!-- nanti isi tank, pompa, valve -->
+
+            </div>
+
+        </div>
+
+        <!-- RIGHT -->
+
+        <div class="panel">
+
+            <h2>
+
+                <i class="fa-solid fa-chart-line"></i>
+
+                Monitoring
+
+            </h2>
+
+            <div class="monitor-card">
+
+                <p>Tank Level</p>
+
+                <h3 id="level">
+
+                    0 %
+
+                </h3>
+
+            </div>
+
+            <div class="monitor-card">
+
+                <p>Pressure</p>
+
+                <h3 id="pressure">
+
+                    0 Bar
+
+                </h3>
+
+            </div>
+
+            <div class="monitor-card">
+
+                <p>Flow Rate</p>
+
+                <h3 id="flow">
+
+                    0 L/min
+
+                </h3>
+
+            </div>
+
+            <div class="monitor-card">
+
+                <p>Pump Status</p>
+
+                <h3 id="pumpStatus">
+
+                    OFF
+
+                </h3>
+
+            </div>
+
+            <div class="control">
+
+<h2>
+<i class="fa-solid fa-power-off"></i>
+Pump Control
+</h2>
+
+
+<label class="switch">
+
+<input type="checkbox" id="relayToggle">
+
+<span class="slider"></span>
+
+</label>
+
+
+<p class="relay-status relay-off" id="relayStatus">
+PUMP OFF
+</p>
+
+
+</div>
+
+        </div>
+
+    </section>
+
+    <!-- ================= CHART ================= -->
+
+    <section class="chart-container">
+
+        <div class="chart-card">
+
+            <h2>
+
+                Pressure Trend
+
+            </h2>
+
+            <canvas id="pressureChart"></canvas>
+
+        </div>
+
+        <div class="chart-card">
+
+            <h2>
+
+                Flow Trend
+
+            </h2>
+
+            <canvas id="flowChart"></canvas>
+
+        </div>
+
+    </section>
+
+    <!-- ================= EVENT LOG ================= -->
+
+    <section class="log">
+
+        <h2>
+
+            Event Log
+
+        </h2>
+
+        <div id="eventLog">
+
+        </div>
+
+    </section>
+
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/mqtt.js"></script>
+
+</body>
+
+</html>
