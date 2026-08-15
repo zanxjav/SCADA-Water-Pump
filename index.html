@@ -1,298 +1,850 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA Smart Water & Irrigation System | ISA-101 High Performance HMI</title>
+    
+    <!-- Meta SEO & Description -->
+    <meta name="description" content="Industrial SCADA Web Interface for Water Storage Tank Monitoring and Automated Soil Moisture Irrigation System complying with ISA-101 and ISA-18.2 standards.">
+    <meta name="keywords" content="SCADA, HMI, IoT, Water Pump, Soil Moisture, Automation, Smart Irrigation, ISA-101, ISA-18.2, MQTT">
+    <meta name="author" content="Fauzan SCADA Automation Engineering">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <!-- Google Fonts: Inter, Orbitron, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 
-    <title>SCADA Water Pump</title>
+    <!-- Font Awesome 6 Pro / Free -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <link rel="stylesheet"
-          href="css/style.css">
+    <!-- Chart.js for High Performance Real-time Trends -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-    <!-- Font Awesome -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <!-- MQTT.js for Real Hardware / IoT Broker WebSockets -->
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
 
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet">
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <!-- Main SCADA Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-<main>
+<div class="scada-app">
 
-    <!-- ================= HEADER ================= -->
-
-    <header class="header">
-
-        <div class="title">
-
-            <h1>SCADA WATER PUMP</h1>
-
-            <p>Industrial Monitoring & Control System</p>
-
+    <!-- =========================================================================
+         1. TOP NAVIGATION / INDUSTRIAL HMI HEADER (ISA-101)
+         ========================================================================= -->
+    <header class="hmi-topbar">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <i class="fa-solid fa-faucet-drip"></i>
+            </div>
+            <div class="brand-title">
+                <h1>SCADA-AQUASMART <span class="tag-std">ISA-101 HMI</span></h1>
+                <p>Industrial Water Storage & Automatic Precision Irrigation System</p>
+            </div>
         </div>
 
-        <div class="company">
+        <!-- Operational Status & Telemetry Node -->
+        <div class="system-telemetry-bar">
+            <div class="telemetry-node" title="System Heartbeat & PLC/Controller Watchdog">
+                <span class="pulse-indicator" id="heartbeatLed"></span>
+                <span>PLC/RTU: <strong id="plcStatus" style="color: #34d399;">ONLINE</strong></span>
+            </div>
 
-            <i class="fa-solid fa-industry"></i>
+            <div class="telemetry-node" title="MQTT Broker Connection Status">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span>MQTT: <strong id="mqttStatusText" style="color: #38bdf8;">CONNECTED (SIM)</strong></span>
+            </div>
 
-            <span>Fauzan SCADA Automation</span>
+            <div class="telemetry-node" title="Control Loop Mode">
+                <i class="fa-solid fa-microchip"></i>
+                <span>MODE: <strong id="currentModeBadge" style="color: #a855f7;">AUTO-IRRIG</strong></span>
+            </div>
 
+            <div class="telemetry-node clock-display" id="scadaClock">
+                --:--:-- WIB
+            </div>
         </div>
 
+        <!-- Top Actions -->
+        <div class="topbar-actions">
+            <button class="hmi-btn" id="btnSoundToggle" title="Aktifkan / Bisukan Suara Alarm SCADA">
+                <i class="fa-solid fa-volume-high" id="soundIcon"></i>
+                <span id="soundText">Audio: ON</span>
+            </button>
+            <button class="hmi-btn" id="btnMqttSettings" title="Konfigurasi Broker MQTT & Hardware Broker">
+                <i class="fa-solid fa-gear"></i>
+                <span>MQTT Config</span>
+            </button>
+            <button class="hmi-btn" id="btnFullscreen" title="Layar Penuh (Control Room Fullscreen)">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+        </div>
     </header>
 
-    <!-- ================= STATUS BAR ================= -->
-
-    <section class="status-bar">
-
-        <div class="status">
-
-            <i class="fa-solid fa-microchip"></i>
-
-            <div>
-
-                <h4>Device</h4>
-
-                <span class="online" id="deviceStatus">
-
-                    ONLINE
-
-                </span>
-
+    <!-- =========================================================================
+         2. ISA-18.2 ACTIVE ALARM BANNER (CRITICAL / WARNING)
+         ========================================================================= -->
+    <section class="alarm-banner" id="activeAlarmBanner">
+        <div class="alarm-info">
+            <div class="alarm-badge-pulse" id="alarmBadge">CRITICAL ALARM</div>
+            <div class="alarm-text" id="alarmBannerMessage">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>[ALM-101] DRY-RUN INTERLOCK: Water Level Below Safety Limit (&lt;15%). Pump Inflow Inhibited.</span>
             </div>
+        </div>
+        <div class="alarm-actions">
+            <button class="hmi-btn hmi-btn-danger" id="btnAckAlarm">
+                <i class="fa-solid fa-check-double"></i> ACKNOWLEDGE (ACK)
+            </button>
+            <button class="hmi-btn" id="btnSilenceAlarm">
+                <i class="fa-solid fa-bell-slash"></i> SILENCE HORN
+            </button>
+        </div>
+    </section>
 
+    <!-- =========================================================================
+         3. CRITICAL KPI & TELEMETRY OVERVIEW CARDS
+         ========================================================================= -->
+    <section class="kpi-grid">
+        <!-- 1. Water Reservoir Level (LT-101) -->
+        <div class="kpi-card accent-water">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">LT-101</span>
+                    <div class="kpi-title">Tank Water Level</div>
+                </div>
+                <i class="fa-solid fa-water-ladder kpi-icon"></i>
+            </div>
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiTankLevel">78.5</span>
+                <span class="kpi-unit">% (<span id="kpiTankLiters">7,850</span> L)</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Safe Range: 20% - 95%</span>
+                <span class="status-pill good" id="tankLevelPill">NORMAL</span>
+            </div>
         </div>
 
-        <div class="status">
-
-            <i class="fa-solid fa-wifi"></i>
-
-            <div>
-
-                <h4>MQTT</h4>
-
-                <span class="online" id="mqttStatus">
-
-                    CONNECTED
-
-                </span>
-
+        <!-- 2. Soil Moisture Content (SM-201) -->
+        <div class="kpi-card accent-soil">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">SM-201</span>
+                    <div class="kpi-title">Soil Moisture Content</div>
+                </div>
+                <i class="fa-solid fa-seedling kpi-icon" style="color: #10b981;"></i>
             </div>
-
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiSoilMoisture" style="color: #34d399;">32.0</span>
+                <span class="kpi-unit">% VWC</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Target: 35% - 75%</span>
+                <span class="status-pill warn" id="soilMoisturePill">DRY - AUTO IRRIG</span>
+            </div>
         </div>
 
-        <div class="status">
-
-            <i class="fa-solid fa-bolt"></i>
-
-            <div>
-
-                <h4>Relay</h4>
-
-                <span id="relayStatus">
-
-                    OFF
-
-                </span>
-
+        <!-- 3. Line Pressure (PT-101) -->
+        <div class="kpi-card accent-pressure">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">PT-101</span>
+                    <div class="kpi-title">Discharge Pressure</div>
+                </div>
+                <i class="fa-solid fa-gauge-high kpi-icon" style="color: #f59e0b;"></i>
             </div>
-
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiPressure">2.84</span>
+                <span class="kpi-unit">Bar</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Design Max: 5.0 Bar</span>
+                <span class="status-pill good" id="pressurePill">OPTIMAL</span>
+            </div>
         </div>
 
-        <div class="status">
+        <!-- 4. Irrigation Flow Rate (FT-101) -->
+        <div class="kpi-card accent-flow">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">FT-101</span>
+                    <div class="kpi-title">Line Flow Rate</div>
+                </div>
+                <i class="fa-solid fa-arrows-split-up-and-left kpi-icon" style="color: #06b6d4;"></i>
+            </div>
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiFlowRate">24.5</span>
+                <span class="kpi-unit">L/min</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Total Today: <strong id="kpiTotalWater" style="color: #38bdf8;">142.6</strong> L</span>
+                <span class="status-pill info" id="flowPill">FLOWING</span>
+            </div>
+        </div>
 
-            <i class="fa-solid fa-plug-circle-bolt"></i>
+        <!-- 5. Main Irrigation Pump P-101 -->
+        <div class="kpi-card accent-pump">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">P-101</span>
+                    <div class="kpi-title">Primary Pump Motor</div>
+                </div>
+                <i class="fa-solid fa-compact-disc kpi-icon" style="color: #10b981;"></i>
+            </div>
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiPumpState" style="color: #10b981;">RUNNING</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Load: <strong id="kpiPumpCurrent">4.2</strong> A | 2850 RPM</span>
+                <span class="status-pill good" id="pumpStatePill">ACTIVE</span>
+            </div>
+        </div>
 
-            <div>
+        <!-- 6. Environmental & Soil Temperature -->
+        <div class="kpi-card accent-power">
+            <div class="kpi-header">
+                <div>
+                    <span class="kpi-tag">TT-201 / TT-202</span>
+                    <div class="kpi-title">Environment & Soil</div>
+                </div>
+                <i class="fa-solid fa-temperature-half kpi-icon" style="color: #a855f7;"></i>
+            </div>
+            <div class="kpi-value-row">
+                <span class="kpi-val" id="kpiSoilTemp">25.4</span>
+                <span class="kpi-unit">°C (Soil)</span>
+            </div>
+            <div class="kpi-subtext">
+                <span>Ambient: <strong id="kpiAmbientTemp">29.1°C</strong> | <strong id="kpiAmbientHum">68% RH</strong></span>
+                <span class="status-pill good">NOMINAL</span>
+            </div>
+        </div>
+    </section>
 
-                <h4>Power</h4>
+    <!-- =========================================================================
+         4. QUICK SCENARIO SIMULATOR TOOLBAR (TEST & DEMO SUITE)
+         ========================================================================= -->
+    <section class="simulator-toolbar">
+        <div class="sim-label">
+            <i class="fa-solid fa-flask-vial"></i>
+            <span>PHYSICS SIMULATOR & DEMO SCENARIOS:</span>
+        </div>
+        <div class="sim-buttons">
+            <button class="sim-btn" id="btnSimDrySoil" title="Turunkan kelembapan tanah ke 20% untuk memicu otomatisasi siram">
+                <i class="fa-solid fa-sun" style="color: #f59e0b;"></i> Simulate Dry Soil (20%)
+            </button>
+            <button class="sim-btn" id="btnSimLowTank" title="Kuras air penampungan ke 10% untuk menguji proteksi interlock dry-run">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> Simulate Low Tank (10%)
+            </button>
+            <button class="sim-btn" id="btnSimRain" title="Simulasikan hujan alami untuk menaikkan kelembapan tanah & tangki">
+                <i class="fa-solid fa-cloud-showers-heavy" style="color: #38bdf8;"></i> Simulate Rain (Wet)
+            </button>
+            <button class="sim-btn" id="btnSimRefillTank" title="Buka kran pengisian tangki penampungan">
+                <i class="fa-solid fa-fill-drip" style="color: #06b6d4;"></i> Refill Reservoir Tank
+            </button>
+            <button class="sim-btn" id="btnSimPumpTrip" title="Simulasi trip beban lebih pada motor pompa">
+                <i class="fa-solid fa-bolt" style="color: #ef4444;"></i> Trip Pump Motor
+            </button>
+            <button class="sim-btn" id="btnSimReset" title="Kembalikan semua nilai ke kondisi standar normal">
+                <i class="fa-solid fa-rotate-left"></i> Reset Baseline
+            </button>
+        </div>
+    </section>
 
-                <span class="online">
+    <!-- =========================================================================
+         5. MAIN SCADA WORKSPACE: P&ID SYNOPTIC MIMIC & CONTROL CENTER
+         ========================================================================= -->
+    <section class="scada-main-grid">
 
-                    NORMAL
-
-                </span>
-
+        <!-- LEFT PANE: P&ID PROCESS DIAGRAM (SVG VECTOR MIMIC) -->
+        <div class="hmi-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <span>PROCESS & INSTRUMENTATION DIAGRAM (P&ID SYNOPTIC MIMIC)</span>
+                </div>
+                <div class="panel-controls">
+                    <span class="kpi-tag" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+                        P&ID DRAWING: DWG-AQ-0104
+                    </span>
+                </div>
             </div>
 
+            <div class="panel-body">
+                <div class="pid-wrapper">
+                    
+                    <!-- HIGH DEFINITION INTERACTIVE SVG P&ID -->
+                    <svg id="pidSvg" viewBox="0 0 1000 580" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <!-- Linear Gradients for Fluids & Industrial Elements -->
+                            <linearGradient id="tankWaterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9" />
+                                <stop offset="50%" stop-color="#0284c7" stop-opacity="0.85" />
+                                <stop offset="100%" stop-color="#0369a1" stop-opacity="0.95" />
+                            </linearGradient>
+
+                            <linearGradient id="pipeMetalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#475569" />
+                                <stop offset="50%" stop-color="#1e293b" />
+                                <stop offset="100%" stop-color="#0f172a" />
+                            </linearGradient>
+
+                            <linearGradient id="soilLayerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#78350f" />
+                                <stop offset="40%" stop-color="#451a03" />
+                                <stop offset="100%" stop-color="#1c1917" />
+                            </linearGradient>
+
+                            <linearGradient id="soilMoistGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#0284c7" stop-opacity="0.4" />
+                                <stop offset="100%" stop-color="#0284c7" stop-opacity="0.05" />
+                            </linearGradient>
+
+                            <!-- Glow Filter for Active Fluid & Alarms -->
+                            <filter id="fluidGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="3" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <!-- P&ID Background Grid / Markers -->
+                        <g opacity="0.15">
+                            <line x1="50" y1="50" x2="950" y2="50" stroke="#475569" stroke-dasharray="5,5" />
+                            <line x1="50" y1="280" x2="950" y2="280" stroke="#475569" stroke-dasharray="5,5" />
+                            <line x1="50" y1="520" x2="950" y2="520" stroke="#475569" stroke-dasharray="5,5" />
+                        </g>
+
+                        <!-- ================= 1. PIPING INFRASTRUCTURE ================= -->
+                        <!-- Inlet Pipe to Tank (from Main City Supply / Source) -->
+                        <path id="pipeInlet" d="M 30 140 L 150 140 L 150 200" class="pipe-line" />
+                        <path id="flowInlet" d="M 30 140 L 150 140 L 150 200" class="pipe-fluid-inactive" />
+
+                        <!-- Suction Pipe from Tank to Pump P-101 -->
+                        <path id="pipeSuction" d="M 230 450 L 370 450" class="pipe-line" />
+                        <path id="flowSuction" d="M 230 450 L 370 450" class="pipe-fluid-inactive" />
+
+                        <!-- Discharge Pipe from Pump P-101 to Soil Zone Emitters -->
+                        <path id="pipeDischarge" d="M 430 450 L 530 450 L 530 240 L 680 240 L 680 320" class="pipe-line" />
+                        <path id="flowDischarge" d="M 430 450 L 530 450 L 530 240 L 680 240 L 680 320" class="pipe-fluid-inactive" />
+
+                        <!-- Branch Emitter Header in Soil Zone -->
+                        <path id="pipeHeader" d="M 680 320 L 920 320" class="pipe-line" />
+                        <path id="flowHeader" d="M 680 320 L 920 320" class="pipe-fluid-inactive" />
+
+                        <!-- Drip / Nozzle Drop Pipes -->
+                        <path d="M 720 320 L 720 370" class="pipe-line" style="stroke-width: 5px;" />
+                        <path d="M 800 320 L 800 370" class="pipe-line" style="stroke-width: 5px;" />
+                        <path d="M 880 320 L 880 370" class="pipe-line" style="stroke-width: 5px;" />
+
+
+                        <!-- ================= 2. WATER STORAGE RESERVOIR (TANK TK-101) ================= -->
+                        <g id="tankGroup" transform="translate(70, 180)">
+                            <!-- Tank Outer Metallic Shell -->
+                            <rect class="tank-shell" x="0" y="0" width="160" height="300" />
+                            <rect class="tank-water-bg" x="6" y="6" width="148" height="288" rx="4" />
+
+                            <!-- Dynamic Liquid Level Fill (Animated Height & Y) -->
+                            <rect id="svgTankWaterFill" class="tank-water-fill" x="6" y="66" width="148" height="228" rx="4" />
+
+                            <!-- Animated Water Surface Wave Line -->
+                            <path id="svgTankWave" class="water-wave-anim" d="M 6 66 Q 43 60, 80 66 T 154 66" fill="none" stroke="#e0f2fe" stroke-width="2.5" />
+
+                            <!-- Level Ruler / Graduation Marks -->
+                            <g fill="#64748b" font-size="10" font-family="'JetBrains Mono', monospace">
+                                <line x1="140" y1="20" x2="152" y2="20" stroke="#64748b" stroke-width="1.5" />
+                                <text x="110" y="23">100%</text>
+                                
+                                <line x1="140" y1="75" x2="152" y2="75" stroke="#ef4444" stroke-width="2" />
+                                <text x="120" y="78" fill="#ef4444">HH</text>
+
+                                <line x1="140" y1="150" x2="152" y2="150" stroke="#64748b" stroke-width="1.5" />
+                                <text x="115" y="153">50%</text>
+
+                                <line x1="140" y1="230" x2="152" y2="230" stroke="#f59e0b" stroke-width="2" />
+                                <text x="125" y="233" fill="#f59e0b">L</text>
+
+                                <line x1="140" y1="265" x2="152" y2="265" stroke="#ef4444" stroke-width="2" />
+                                <text x="120" y="268" fill="#ef4444">LL</text>
+                            </g>
+
+                            <!-- Tank Tag & Name -->
+                            <text x="80" y="40" text-anchor="middle" fill="#94a3b8" font-family="'Orbitron', monospace" font-size="12" font-weight="700">TK-101</text>
+                            <text x="80" y="55" text-anchor="middle" fill="#64748b" font-family="'Inter', sans-serif" font-size="10">RESERVOIR</text>
+
+                            <!-- Ultrasonic Level Transmitter LT-101 on Tank Top -->
+                            <rect x="65" y="-22" width="30" height="22" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" rx="3" />
+                            <circle cx="80" cy="-11" r="5" fill="#38bdf8" />
+                            <!-- Sensor beam path -->
+                            <path d="M 72 0 L 60 40 M 88 0 L 100 40" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,3" opacity="0.6" />
+                        </g>
+
+                        <!-- Level Transmitter ISA Badge -->
+                        <g transform="translate(150, 130)">
+                            <circle cx="0" cy="0" r="16" fill="#0f172a" stroke="#38bdf8" stroke-width="2" />
+                            <text x="0" y="4" text-anchor="middle" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="bold">LT-101</text>
+                        </g>
+
+                        <!-- Inlet Solenoid Valve XV-101 -->
+                        <g id="valveInletGroup" class="valve-closed" transform="translate(80, 140)">
+                            <polygon points="-12,-10 12,10 12,-10 -12,10" class="valve-body" />
+                            <rect x="-4" y="-18" width="8" height="8" fill="#1e293b" stroke="#64748b" />
+                            <text x="0" y="-22" text-anchor="middle" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="9">XV-101</text>
+                        </g>
+
+
+                        <!-- ================= 3. PRIMARY PUMP P-101 ================= -->
+                        <g id="pumpGroup" class="pump-running" transform="translate(400, 450)">
+                            <!-- Pump Base Plate -->
+                            <rect x="-35" y="32" width="70" height="12" fill="#1e293b" stroke="#334155" rx="2" />
+
+                            <!-- Centrifugal Pump Casing -->
+                            <circle cx="0" cy="0" r="32" fill="#0f172a" stroke="#38bdf8" stroke-width="3" />
+                            <circle cx="0" cy="0" r="28" fill="#1e293b" />
+
+                            <!-- Impeller / Blower Rotor (Rotates Strictly In-Place) -->
+                            <g id="pumpImpellerRotor" class="pump-impeller">
+                                <circle cx="0" cy="0" r="8" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" />
+                                <path d="M 0 -6 Q 10 -14, 0 -22" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" />
+                                <path d="M 6 0 Q 14 10, 22 0" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" />
+                                <path d="M 0 6 Q -10 14, 0 22" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" />
+                                <path d="M -6 0 Q -14 -10, -22 0" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" />
+                                <circle cx="0" cy="0" r="3" fill="#ffffff" />
+                            </g>
+
+                            <!-- Electric Motor Casing & Cooling Fins -->
+                            <rect x="-55" y="-20" width="22" height="40" fill="#1e293b" stroke="#475569" stroke-width="2" rx="3" />
+                            <line x1="-50" y1="-14" x2="-38" y2="-14" stroke="#64748b" stroke-width="2" />
+                            <line x1="-50" y1="0" x2="-38" y2="0" stroke="#64748b" stroke-width="2" />
+                            <line x1="-50" y1="14" x2="-38" y2="14" stroke="#64748b" stroke-width="2" />
+
+                            <!-- Motor Status LED -->
+                            <circle id="svgPumpLed" cx="0" cy="-38" r="5" fill="#10b981" filter="url(#fluidGlow)" />
+
+                            <text x="0" y="58" text-anchor="middle" fill="#f8fafc" font-family="'Orbitron', monospace" font-size="12" font-weight="700">P-101</text>
+                            <text x="0" y="70" text-anchor="middle" fill="#64748b" font-family="'Inter', sans-serif" font-size="9">IRRIGATION PUMP</text>
+                        </g>
+
+                        <!-- Non-Return Check Valve NRV-101 -->
+                        <g transform="translate(480, 450)">
+                            <polygon points="-10,-10 10,0 -10,10" fill="#1e293b" stroke="#64748b" stroke-width="2" />
+                            <line x1="10" y1="-10" x2="10" y2="10" stroke="#64748b" stroke-width="2" />
+                            <text x="0" y="-16" text-anchor="middle" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="9">NRV-101</text>
+                        </g>
+
+                        <!-- Pressure Transmitter PT-101 -->
+                        <g transform="translate(530, 360)">
+                            <line x1="0" y1="0" x2="0" y2="30" stroke="#64748b" stroke-width="2" />
+                            <circle cx="0" cy="0" r="16" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+                            <text x="0" y="4" text-anchor="middle" fill="#f59e0b" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="bold">PT-101</text>
+                        </g>
+
+                        <!-- Flow Meter FT-101 -->
+                        <g transform="translate(610, 240)">
+                            <circle cx="0" cy="0" r="16" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+                            <text x="0" y="4" text-anchor="middle" fill="#06b6d4" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="bold">FT-101</text>
+                        </g>
+
+                        <!-- Zone Irrigation Solenoid Valve XV-201 -->
+                        <g id="valveZoneGroup" class="valve-open" transform="translate(680, 280)">
+                            <polygon points="-10,-12 10,12 10,-12 -10,12" class="valve-body" transform="rotate(90)" />
+                            <rect x="8" y="-4" width="8" height="8" fill="#1e293b" stroke="#64748b" />
+                            <text x="24" y="4" fill="#94a3b8" font-family="'JetBrains Mono', monospace" font-size="9">XV-201</text>
+                        </g>
+
+
+                        <!-- ================= 4. AGRICULTURAL ZONE & SOIL MOISTURE STATION ================= -->
+                        <g id="soilZoneGroup" transform="translate(660, 370)">
+                            
+                            <!-- Soil Layer Bed (Gradient Fill) -->
+                            <rect x="0" y="30" width="280" height="110" fill="url(#soilLayerGrad)" stroke="#451a03" stroke-width="2" rx="6" />
+                            <rect id="svgSoilMoistureWash" x="0" y="30" width="280" height="110" fill="url(#soilMoistGlow)" rx="6" />
+
+                            <!-- Soil Granules / Texture -->
+                            <g opacity="0.3" fill="#d97706">
+                                <circle cx="40" cy="60" r="3" /> <circle cx="90" cy="80" r="4" />
+                                <circle cx="150" cy="55" r="2.5" /> <circle cx="210" cy="90" r="3.5" />
+                                <circle cx="250" cy="70" r="3" /> <circle cx="120" cy="110" r="4" />
+                            </g>
+
+                            <!-- Plant 1 (Left Crop) -->
+                            <g class="plant-optimal" transform="translate(60, 30)">
+                                <!-- Plant Stem -->
+                                <path d="M 0 0 Q -2 -25, 0 -45" stroke="#15803d" stroke-width="4" fill="none" />
+                                <!-- Leaves -->
+                                <path class="plant-leaf" d="M 0 -20 C -25 -30, -30 -10, 0 -15" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -35 C 25 -45, 30 -25, 0 -30" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -45 C -15 -65, 15 -65, 0 -45" fill="#4ade80" />
+                                <!-- Root Network in Soil -->
+                                <path d="M 0 0 Q -15 25, -25 50 M 0 0 Q 15 20, 20 55 M 0 0 Q 0 35, 0 70" stroke="#a16207" stroke-width="1.8" fill="none" opacity="0.7" />
+                            </g>
+
+                            <!-- Plant 2 (Middle Crop - Main Focus) -->
+                            <g class="plant-optimal" transform="translate(140, 30)">
+                                <path d="M 0 0 Q 3 -30, 0 -55" stroke="#15803d" stroke-width="4.5" fill="none" />
+                                <path class="plant-leaf" d="M 0 -25 C -30 -40, -35 -15, 0 -20" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -40 C 30 -55, 35 -30, 0 -35" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -55 C -20 -78, 20 -78, 0 -55" fill="#4ade80" />
+                                <!-- Roots -->
+                                <path d="M 0 0 Q -20 30, -35 60 M 0 0 Q 20 25, 30 65 M 0 0 Q 2 40, -5 85" stroke="#a16207" stroke-width="2" fill="none" opacity="0.8" />
+                            </g>
+
+                            <!-- Plant 3 (Right Crop) -->
+                            <g class="plant-optimal" transform="translate(220, 30)">
+                                <path d="M 0 0 Q -2 -25, 0 -45" stroke="#15803d" stroke-width="4" fill="none" />
+                                <path class="plant-leaf" d="M 0 -20 C -25 -30, -30 -10, 0 -15" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -35 C 25 -45, 30 -25, 0 -30" fill="#22c55e" />
+                                <path class="plant-leaf" d="M 0 -45 C -15 -65, 15 -65, 0 -45" fill="#4ade80" />
+                                <!-- Roots -->
+                                <path d="M 0 0 Q -15 25, -20 50 M 0 0 Q 15 20, 25 55 M 0 0 Q 0 35, 5 70" stroke="#a16207" stroke-width="1.8" fill="none" opacity="0.7" />
+                            </g>
+
+                            <!-- Soil Moisture Sensor Probe SM-201 (Embedded in root zone) -->
+                            <g transform="translate(180, 20)">
+                                <!-- Sensor Head Electronics -->
+                                <rect x="-8" y="-18" width="16" height="18" fill="#0f172a" stroke="#10b981" stroke-width="2" rx="3" />
+                                <circle cx="0" cy="-9" r="3" fill="#10b981" />
+                                <!-- Dual Metal Probes in Soil -->
+                                <line x1="-4" y1="0" x2="-4" y2="70" stroke="#cbd5e1" stroke-width="2.5" />
+                                <line x1="4" y1="0" x2="4" y2="70" stroke="#cbd5e1" stroke-width="2.5" />
+                                <!-- Sensing Wave Waves -->
+                                <path d="M -12 35 Q 0 45, 12 35 M -15 55 Q 0 65, 15 55" stroke="#10b981" stroke-width="1.5" stroke-dasharray="2,2" fill="none" opacity="0.8" />
+                            </g>
+
+                            <!-- Sprinkler Mist & Water Droplets (Activated on Irrigation) -->
+                            <g id="sprayEmittersGroup" class="spray-active">
+                                <!-- Nozzle 1 Spray -->
+                                <g class="spray-droplets" transform="translate(60, 0)">
+                                    <path d="M 0 0 L -18 28 M 0 0 L 0 30 M 0 0 L 18 28" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3,3" />
+                                    <circle cx="-12" cy="20" r="2" fill="#38bdf8" />
+                                    <circle cx="10" cy="22" r="2" fill="#38bdf8" />
+                                </g>
+
+                                <!-- Nozzle 2 Spray -->
+                                <g class="spray-droplets" transform="translate(140, 0)">
+                                    <path d="M 0 0 L -22 28 M 0 0 L 0 30 M 0 0 L 22 28" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3,3" />
+                                    <circle cx="-8" cy="18" r="2" fill="#38bdf8" />
+                                    <circle cx="14" cy="24" r="2" fill="#38bdf8" />
+                                </g>
+
+                                <!-- Nozzle 3 Spray -->
+                                <g class="spray-droplets" transform="translate(220, 0)">
+                                    <path d="M 0 0 L -18 28 M 0 0 L 0 30 M 0 0 L 18 28" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3,3" />
+                                    <circle cx="-14" cy="22" r="2" fill="#38bdf8" />
+                                    <circle cx="12" cy="19" r="2" fill="#38bdf8" />
+                                </g>
+                            </g>
+
+                            <text x="140" y="160" text-anchor="middle" fill="#94a3b8" font-family="'Orbitron', monospace" font-size="11" font-weight="700">ZONE-A: SOIL & CROPS</text>
+                        </g>
+
+                        <!-- Soil Moisture Transmitter ISA Badge -->
+                        <g transform="translate(840, 360)">
+                            <circle cx="0" cy="0" r="16" fill="#0f172a" stroke="#10b981" stroke-width="2" />
+                            <text x="0" y="4" text-anchor="middle" fill="#10b981" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="bold">SM-201</text>
+                        </g>
+
+                        <!-- Ambient Weather Sensor TT-202 Badge -->
+                        <g transform="translate(920, 100)">
+                            <rect x="-40" y="-30" width="80" height="46" fill="#0f172a" stroke="#334155" stroke-width="1.5" rx="6" />
+                            <text x="0" y="-12" text-anchor="middle" fill="#f59e0b" font-family="'Inter', sans-serif" font-size="11">☀️ 29.1°C</text>
+                            <text x="0" y="6" text-anchor="middle" fill="#38bdf8" font-family="'Inter', sans-serif" font-size="10">💧 68% RH</text>
+                        </g>
+
+                    </svg>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANE: INDUSTRIAL CONTROL CENTER & SETPOINT TUNING -->
+        <div class="hmi-panel control-pane">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>SUPERVISORY CONTROL CENTER</span>
+                </div>
+                <span class="kpi-tag" style="background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4);">
+                    PLC AUTO-LOGIC
+                </span>
+            </div>
+
+            <div class="panel-body" style="display: flex; flex-direction: column; gap: 14px;">
+                
+                <!-- Mode Selector (AUTO / MANUAL / SCHEDULE) -->
+                <div>
+                    <label style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 6px; display: block; font-weight: 600;">
+                        SYSTEM OPERATION MODE:
+                    </label>
+                    <div class="mode-selector-group">
+                        <button class="mode-btn active mode-auto" id="btnModeAuto" onclick="scadaApp.setControlMode('AUTO')">
+                            <i class="fa-solid fa-robot"></i>
+                            <span>AUTO</span>
+                        </button>
+                        <button class="mode-btn mode-manual" id="btnModeManual" onclick="scadaApp.setControlMode('MANUAL')">
+                            <i class="fa-solid fa-hand-pointer"></i>
+                            <span>MANUAL</span>
+                        </button>
+                        <button class="mode-btn mode-schedule" id="btnModeSchedule" onclick="scadaApp.setControlMode('SCHEDULE')">
+                            <i class="fa-solid fa-calendar-clock"></i>
+                            <span>SCHEDULE</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Automation Decision Box -->
+                <div class="auto-logic-box">
+                    <div class="logic-row">
+                        <span class="logic-title"><i class="fa-solid fa-brain" style="color: #a855f7;"></i> Closed-Loop Status:</span>
+                        <span class="logic-val" id="logicStatusText" style="color: #34d399;">ACTIVE - IRRIGATING</span>
+                    </div>
+                    <div class="logic-row">
+                        <span class="logic-title">Condition Reason:</span>
+                        <span class="logic-val" id="logicReasonText" style="color: #38bdf8; font-size: 0.74rem;">Soil (32%) &lt; Setpoint (35%)</span>
+                    </div>
+                    <div class="logic-row">
+                        <span class="logic-title">Tank Safety Interlock:</span>
+                        <span class="logic-val" id="logicInterlockText" style="color: #10b981;">OK (Level &gt; 15%)</span>
+                    </div>
+                </div>
+
+                <!-- Manual Actuator Console -->
+                <div class="manual-console">
+                    <div style="font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Direct Actuator Overrides:
+                    </div>
+
+                    <!-- Pump P-101 Toggle -->
+                    <div class="actuator-row">
+                        <div class="actuator-meta">
+                            <h4>Pump P-101 (Primary)</h4>
+                            <p>Centrifugal Motor Actuation</p>
+                        </div>
+                        <label class="industrial-switch">
+                            <input type="checkbox" id="togglePumpManual" onchange="scadaApp.handleManualPumpToggle(this.checked)">
+                            <span class="ind-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Solenoid Valve XV-201 (Zone Emitters) -->
+                    <div class="actuator-row">
+                        <div class="actuator-meta">
+                            <h4>Valve XV-201 (Zone A)</h4>
+                            <p>Sprinkler / Drip Header</p>
+                        </div>
+                        <label class="industrial-switch">
+                            <input type="checkbox" id="toggleValveZone" checked onchange="scadaApp.handleManualValveToggle('zone', this.checked)">
+                            <span class="ind-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Refill Solenoid Valve XV-101 -->
+                    <div class="actuator-row">
+                        <div class="actuator-meta">
+                            <h4>Refill Valve XV-101</h4>
+                            <p>Main Supply Inflow</p>
+                        </div>
+                        <label class="industrial-switch">
+                            <input type="checkbox" id="toggleValveInlet" onchange="scadaApp.handleManualValveToggle('inlet', this.checked)">
+                            <span class="ind-slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Emergency Stop Button -->
+                    <button class="btn-emergency-stop" id="btnEstop" onclick="scadaApp.toggleEmergencyStop()">
+                        <i class="fa-solid fa-hand"></i> EMERGENCY STOP (E-STOP)
+                    </button>
+                </div>
+
+                <!-- Setpoint & Threshold Tuning -->
+                <div class="setpoints-section">
+                    <div style="font-size: 0.78rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                        Closed-Loop Setpoint Tuner:
+                    </div>
+
+                    <!-- Soil Moisture Trigger Level (Start) -->
+                    <div class="setpoint-slider-group">
+                        <div class="slider-label-row">
+                            <span>Auto-Start Moisture (SP-Min):</span>
+                            <span class="sp-val" id="spSoilMinVal">35 %</span>
+                        </div>
+                        <input type="range" class="scada-range" id="sliderSoilMin" min="15" max="60" value="35" oninput="scadaApp.updateSetpoint('soilMin', this.value)">
+                    </div>
+
+                    <!-- Soil Moisture Stop Target (Stop) -->
+                    <div class="setpoint-slider-group">
+                        <div class="slider-label-row">
+                            <span>Target Optimal Moisture (SP-Max):</span>
+                            <span class="sp-val" id="spSoilTargetVal">75 %</span>
+                        </div>
+                        <input type="range" class="scada-range" id="sliderSoilTarget" min="50" max="90" value="75" oninput="scadaApp.updateSetpoint('soilTarget', this.value)">
+                    </div>
+
+                    <!-- Tank Safety Cutoff -->
+                    <div class="setpoint-slider-group">
+                        <div class="slider-label-row">
+                            <span>Tank Dry-Run Cutoff (LL-Trip):</span>
+                            <span class="sp-val" id="spTankCutoffVal">15 %</span>
+                        </div>
+                        <input type="range" class="scada-range" id="sliderTankCutoff" min="5" max="30" value="15" oninput="scadaApp.updateSetpoint('tankCutoff', this.value)">
+                    </div>
+                </div>
+
+            </div>
         </div>
 
     </section>
 
-    <!-- ================= DASHBOARD ================= -->
-
-    <section class="dashboard">
-
-        <!-- LEFT -->
-
-        <div class="process">
-
-            <h2>
-
-                <i class="fa-solid fa-diagram-project"></i>
-
-                Process Diagram
-
-            </h2>
-
-            <div id="processArea">
-
-                <!-- nanti isi tank, pompa, valve -->
-
+    <!-- =========================================================================
+         6. REAL-TIME MULTI-CHANNEL HISTORICAL TREND CHARTS (CHART.JS)
+         ========================================================================= -->
+    <section class="charts-grid">
+        
+        <!-- Trend 1: Soil Moisture & Pump Irrigation State -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>SOIL MOISTURE DYNAMICS & IRRIGATION ACTUATION TREND</span>
+                </h3>
+                <div class="chart-actions">
+                    <span class="kpi-tag" style="color: #10b981; border-color: #10b981;">SM-201 (% VWC)</span>
+                    <span class="kpi-tag" style="color: #38bdf8; border-color: #38bdf8;">PUMP DIGITAL (ON/OFF)</span>
+                </div>
             </div>
-
+            <div class="chart-canvas-box">
+                <canvas id="soilTrendChart"></canvas>
+            </div>
         </div>
 
-        <!-- RIGHT -->
-
-        <div class="panel">
-
-            <h2>
-
-                <i class="fa-solid fa-chart-line"></i>
-
-                Monitoring
-
-            </h2>
-
-            <div class="monitor-card">
-
-                <p>Tank Level</p>
-
-                <h3 id="level">
-
-                    0 %
-
+        <!-- Trend 2: Reservoir Tank Level & Discharge Flow Rate -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3>
+                    <i class="fa-solid fa-chart-area"></i>
+                    <span>WATER RESERVOIR LEVEL & LINE FLOW RATE TREND</span>
                 </h3>
-
+                <div class="chart-actions">
+                    <span class="kpi-tag" style="color: #0284c7; border-color: #0284c7;">TANK LEVEL (%)</span>
+                    <span class="kpi-tag" style="color: #f59e0b; border-color: #f59e0b;">FLOW (L/min)</span>
+                </div>
             </div>
-
-            <div class="monitor-card">
-
-                <p>Pressure</p>
-
-                <h3 id="pressure">
-
-                    0 Bar
-
-                </h3>
-
+            <div class="chart-canvas-box">
+                <canvas id="tankTrendChart"></canvas>
             </div>
+        </div>
 
-            <div class="monitor-card">
+    </section>
 
-                <p>Flow Rate</p>
-
-                <h3 id="flow">
-
-                    0 L/min
-
-                </h3>
-
+    <!-- =========================================================================
+         7. ISA-18.2 ALARM & EVENT HISTORIAN LOG
+         ========================================================================= -->
+    <section class="historian-section">
+        <div class="historian-header">
+            <div class="historian-title">
+                <i class="fa-solid fa-clock-rotate-left" style="color: var(--telemetry-cyan);"></i>
+                <span>ISA-18.2 ALARM & EVENT HISTORIAN SEQUENCE OF EVENTS (SOE)</span>
             </div>
-
-            <div class="monitor-card">
-
-                <p>Pump Status</p>
-
-                <h3 id="pumpStatus">
-
-                    OFF
-
-                </h3>
-
+            
+            <div class="filter-tags">
+                <button class="filter-tag-btn active" onclick="scadaApp.filterLogs('ALL')">ALL EVENTS</button>
+                <button class="filter-tag-btn" onclick="scadaApp.filterLogs('CRITICAL')">CRITICAL ALARMS</button>
+                <button class="filter-tag-btn" onclick="scadaApp.filterLogs('WARNING')">WARNINGS</button>
+                <button class="filter-tag-btn" onclick="scadaApp.filterLogs('ACTION')">OPERATOR ACTIONS</button>
+                <button class="hmi-btn" style="padding: 4px 10px; font-size: 0.72rem;" onclick="scadaApp.exportLogCsv()">
+                    <i class="fa-solid fa-file-csv"></i> Export CSV
+                </button>
+                <button class="hmi-btn" style="padding: 4px 10px; font-size: 0.72rem;" onclick="scadaApp.clearLogTable()">
+                    <i class="fa-solid fa-trash"></i> Clear Log
+                </button>
             </div>
+        </div>
 
-            <div class="control">
-
-<h2>
-<i class="fa-solid fa-power-off"></i>
-Pump Control
-</h2>
-
-
-<label class="switch">
-
-<input type="checkbox" id="relayToggle">
-
-<span class="slider"></span>
-
-</label>
-
-
-<p class="relay-status relay-off" id="relayStatus">
-PUMP OFF
-</p>
-
+        <div class="event-table-wrapper">
+            <table class="scada-table">
+                <thead>
+                    <tr>
+                        <th style="width: 140px;">TIMESTAMP</th>
+                        <th style="width: 90px;">TAG ID</th>
+                        <th style="width: 100px;">SEVERITY</th>
+                        <th>DESCRIPTION / PROCESS MESSAGE</th>
+                        <th style="width: 110px;">VALUE / STATE</th>
+                        <th style="width: 90px;">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody id="eventLogTableBody">
+                    <!-- Dynamic Log Entries Injected via JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
 
 </div>
 
+<!-- =========================================================================
+     8. MQTT CONFIGURATION & TELEMETRY SETTINGS MODAL
+     ========================================================================= -->
+<div class="scada-modal-overlay" id="mqttModal">
+    <div class="scada-modal">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-network-wired" style="color: #38bdf8;"></i> MQTT Industrial IoT Broker Settings</h3>
+            <button class="modal-close-btn" onclick="scadaApp.closeMqttModal()">&times;</button>
         </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Broker WebSocket URL (WSS / WS):</label>
+                <input type="text" class="form-input" id="mqttHost" value="wss://broker.hivemq.com:8884/mqtt">
+                <small style="color: #64748b; font-size: 0.72rem;">Contoh: wss://broker.hivemq.com:8884/mqtt atau ws://broker.emqx.io:8083/mqtt atau ws://192.168.1.100:9001</small>
+            </div>
 
-    </section>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Client ID:</label>
+                    <input type="text" class="form-input" id="mqttClientId" value="SCADA_AquaSmart_WebClient">
+                </div>
+                <div class="form-group">
+                    <label>QoS Level:</label>
+                    <select class="form-input" id="mqttQos">
+                        <option value="0">0 - At most once</option>
+                        <option value="1" selected>1 - At least once</option>
+                        <option value="2">2 - Exactly once</option>
+                    </select>
+                </div>
+            </div>
 
-    <!-- ================= CHART ================= -->
+            <div class="form-group">
+                <label>Telemetry Topic (Subscribe JSON from ESP32/PLC):</label>
+                <input type="text" class="form-input" id="mqttTopicTelemetry" value="scada/aquasmart/telemetry">
+            </div>
 
-    <section class="chart-container">
+            <div class="form-group">
+                <label>Control Command Topic (Publish JSON to Pump/Valves):</label>
+                <input type="text" class="form-input" id="mqttTopicControl" value="scada/aquasmart/control">
+            </div>
 
-        <div class="chart-card">
+            <div class="form-group">
+                <label>Alarm / SOE Topic:</label>
+                <input type="text" class="form-input" id="mqttTopicAlarm" value="scada/aquasmart/alarm">
+            </div>
 
-            <h2>
-
-                Pressure Trend
-
-            </h2>
-
-            <canvas id="pressureChart"></canvas>
-
+            <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 6px; padding: 10px; font-size: 0.75rem; color: #94a3b8; font-family: monospace;">
+                <strong>Sample Payload Format (JSON):</strong><br>
+                {"tankLevel": 78.5, "soilMoisture": 32.0, "pressure": 2.8, "flowRate": 24.5, "soilTemp": 25.4, "pumpStatus": true}
+            </div>
         </div>
-
-        <div class="chart-card">
-
-            <h2>
-
-                Flow Trend
-
-            </h2>
-
-            <canvas id="flowChart"></canvas>
-
+        <div class="modal-footer">
+            <button class="hmi-btn" onclick="scadaApp.closeMqttModal()">Batal</button>
+            <button class="hmi-btn hmi-btn-danger" id="btnDisconnectMqtt" onclick="scadaMqtt.disconnect()">Disconnect</button>
+            <button class="hmi-btn active" id="btnConnectMqtt" onclick="scadaMqtt.connectFromModal()">Save & Connect MQTT</button>
         </div>
+    </div>
+</div>
 
-    </section>
-
-    <!-- ================= EVENT LOG ================= -->
-
-    <section class="log">
-
-        <h2>
-
-            Event Log
-
-        </h2>
-
-        <div id="eventLog">
-
-        </div>
-
-    </section>
-
-</main>
-
-<script src="js/app.js"></script>
+<!-- Core JavaScript Modules -->
 <script src="js/mqtt.js"></script>
+<script src="js/app.js"></script>
 
 </body>
-
 </html>
